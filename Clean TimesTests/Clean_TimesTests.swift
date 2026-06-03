@@ -8,10 +8,13 @@
 import Testing
 @testable import Clean_Times
 
+@MainActor
 struct Clean_TimesTests {
 
-    @Test func example() async throws {
-        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+    @Test func samplePrincipleCollapsedLabelMatchesPlan() {
+        let entry = PrincipleEntry.sample
+
+        #expect("\(entry.displayDate) -- \(entry.keyword)" == "May 9 -- Love")
     }
 
 }
