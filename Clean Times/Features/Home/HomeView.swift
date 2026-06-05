@@ -7,6 +7,7 @@ enum HomePanel: Hashable {
 }
 
 struct HomeView: View {
+    @AppStorage("isCleanDateSet") private var isCleanDateSet = false
     @AppStorage("cleanDate") private var cleanDateInterval = Date().timeIntervalSinceReferenceDate
     @AppStorage("meditationDefaultDurationSeconds") private var meditationDefaultDurationSeconds = 900.0
 
@@ -14,6 +15,7 @@ struct HomeView: View {
     @State private var expandedPanel: HomePanel?
     @State private var showsAbout = false
     @State private var showsCleanDateEditor = false
+    @State private var opensCleanDateEditorAfterAbout = false
     @State private var currentPrincipleEntry = PrincipleEntry.sample
 
     private let principleRepository = PrincipleRepository()
@@ -31,29 +33,29 @@ struct HomeView: View {
     }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottomTrailing) {
             RetroTheme.paper.ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: RetroTheme.Layout.panelSpacing) {
-                    topArea
-
                     RetroPanel(
-                        number: 1,
                         title: "Clean Time",
                         icon: .clock,
                         role: .primary,
-                        collapsedLabel: cleanSnapshot.collapsedLabel,
+                        collapsedLabel: isCleanDateSet ? cleanSnapshot.collapsedLabel : nil,
                         isExpanded: expandedPanel == .cleanTime,
                         onTap: { toggle(.cleanTime) }
                     ) {
-                        CleanTimePanel(cleanDate: cleanDate, today: .now) {
+                        CleanTimePanel(
+                            cleanDate: cleanDate,
+                            today: .now,
+                            isCleanDateSet: isCleanDateSet
+                        ) {
                             showsCleanDateEditor = true
                         }
                     }
 
                     RetroPanel(
-                        number: 2,
                         title: principlePanelTitle,
                         icon: .book,
                         role: .secondary,
@@ -77,7 +79,6 @@ struct HomeView: View {
                     }
 
                     RetroPanel(
-                        number: 3,
                         title: "Meditation",
                         icon: .headphones,
                         role: .primary,
@@ -90,47 +91,67 @@ struct HomeView: View {
                 }
                 .padding(.horizontal, RetroTheme.Layout.screenHorizontalPadding)
                 .padding(.top, RetroTheme.Layout.screenTopPadding)
-                .padding(.bottom, RetroTheme.Layout.screenBottomPadding)
+                .padding(.bottom, RetroTheme.Layout.screenBottomPaddingWithControls)
             }
+
+            helpButton
+                .padding(.trailing, RetroTheme.Layout.screenHorizontalPadding)
+                .padding(.bottom, RetroTheme.Layout.floatingControlsBottomPadding)
         }
-        .statusBarHidden(true)
         .onAppear {
+            migrateLegacyCleanDateStateIfNeeded()
             currentPrincipleEntry = principleRepository.entry(for: .now, calendar: calendar)
         }
-        .sheet(isPresented: $showsAbout) {
-            AboutSheet()
+        .sheet(isPresented: $showsAbout, onDismiss: presentCleanDateEditorIfNeeded) {
+            AboutSheet(showsEditCleanTime: isCleanDateSet) {
+                opensCleanDateEditorAfterAbout = true
+                showsAbout = false
+            }
         }
         .sheet(isPresented: $showsCleanDateEditor) {
             CleanDateEditor(currentCleanDate: cleanDate) { newDate in
                 cleanDateInterval = newDate.timeIntervalSinceReferenceDate
+                isCleanDateSet = true
             }
         }
     }
 
-    private var topArea: some View {
-        ZStack(alignment: .topTrailing) {
-            PixelStatusStrip()
-                .padding(.trailing, 44)
-
-            Button {
-                showsAbout = true
-            } label: {
-                Text("?")
-                    .font(RetroFont.accent(16, weight: .bold))
-                    .foregroundStyle(RetroTheme.ink)
-                    .frame(
-                        width: RetroTheme.Layout.helpButtonSize,
-                        height: RetroTheme.Layout.helpButtonSize
-                    )
-                    .background(RetroTheme.subtleSurface)
-                    .beveledBorder(
-                        cornerRadius: RetroTheme.Layout.panelCornerRadius,
-                        shadowOffset: 1
-                    )
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("About CleanTimes")
+    private var helpButton: some View {
+        Button {
+            showsAbout = true
+        } label: {
+            Text("?")
+                .font(RetroFont.accent(16, weight: .bold))
+                .foregroundStyle(RetroTheme.ink)
+                .frame(
+                    width: RetroTheme.Layout.helpButtonSize,
+                    height: RetroTheme.Layout.helpButtonSize
+                )
+                .background(RetroTheme.subtleSurface)
+                .beveledBorder(
+                    cornerRadius: RetroTheme.Layout.panelCornerRadius,
+                    shadowOffset: 1
+                )
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("About CleanTimes")
+    }
+
+    private func presentCleanDateEditorIfNeeded() {
+        guard opensCleanDateEditorAfterAbout else {
+            return
+        }
+
+        opensCleanDateEditorAfterAbout = false
+        showsCleanDateEditor = true
+    }
+
+    private func migrateLegacyCleanDateStateIfNeeded() {
+        guard !isCleanDateSet else {
+            return
+        }
+
+        isCleanDateSet = UserDefaults.standard.object(forKey: "cleanDate") != nil
     }
 
     private func toggle(_ panel: HomePanel) {

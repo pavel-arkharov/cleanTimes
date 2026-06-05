@@ -22,15 +22,6 @@ enum RetroTheme {
         case primary
         case secondary
 
-        var accent: Color {
-            switch self {
-            case .primary:
-                RetroTheme.blue
-            case .secondary:
-                RetroTheme.mint
-            }
-        }
-
         var headerTint: Color {
             switch self {
             case .primary:
@@ -129,13 +120,16 @@ enum RetroTheme {
         static let panelHeaderSpacing: CGFloat = 12
         static let panelIconFrame: CGFloat = 32
         static let panelIconGlyph: CGFloat = 24
-        static let panelBadgeWidth: CGFloat = 28
-        static let panelBadgeHeight: CGFloat = 32
         static let panelChevronFrame: CGFloat = 30
         static let topStatusHeight: CGFloat = 44
         static let squareIconButtonWidth: CGFloat = 46
         static let squareIconButtonHeight: CGFloat = 42
         static let helpButtonSize: CGFloat = 32
+        static let floatingControlSpacing: CGFloat = 10
+        static let floatingControlsBottomPadding: CGFloat = 18
+        static let screenBottomPaddingWithControls: CGFloat = 88
+        static let editCleanTimeButtonMinWidth: CGFloat = 146
+        static let setCleanTimeButtonMinWidth: CGFloat = 214
         static let segmentedCornerRadius: CGFloat = 2
         static let meditationDialSize: CGFloat = 172
         static let meditationPanelSpacing: CGFloat = 20

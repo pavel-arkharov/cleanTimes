@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct RetroPanel<ExpandedContent: View>: View {
-    let number: Int
     let title: String
     let icon: PixelIcon.Kind
     let role: RetroTheme.PanelRole
@@ -13,7 +12,6 @@ struct RetroPanel<ExpandedContent: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             RetroPanelHeader(
-                number: number,
                 title: title,
                 icon: icon,
                 role: role,
@@ -40,7 +38,6 @@ struct RetroPanel<ExpandedContent: View>: View {
 }
 
 struct RetroPanelHeader: View {
-    let number: Int
     let title: String
     let icon: PixelIcon.Kind
     let role: RetroTheme.PanelRole
@@ -56,16 +53,6 @@ struct RetroPanelHeader: View {
                         width: RetroTheme.Layout.panelIconFrame,
                         height: RetroTheme.Layout.panelIconFrame
                     )
-
-                Text("\(number)")
-                    .font(RetroFont.panelBadge)
-                    .foregroundStyle(.white)
-                    .frame(
-                        width: RetroTheme.Layout.panelBadgeWidth,
-                        height: RetroTheme.Layout.panelBadgeHeight
-                    )
-                    .background(role.accent)
-                    .beveledBorder(cornerRadius: RetroTheme.Layout.panelCornerRadius, shadowOffset: 0)
 
                 Text(title)
                     .font(RetroFont.panelTitle)
