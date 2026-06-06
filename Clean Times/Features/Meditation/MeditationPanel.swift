@@ -65,9 +65,18 @@ struct MeditationPanel: View {
         }
         .padding(.horizontal, RetroTheme.Layout.meditationPanelHorizontalPadding)
         .padding(.vertical, RetroTheme.Layout.meditationPanelVerticalPadding)
-        .onAppear(perform: synchronizeStoredDuration)
+        .onAppear {
+            synchronizeStoredDuration()
+            updateWakeLock()
+        }
+        .onDisappear {
+            MeditationWakeLock.setActive(false)
+        }
         .onReceive(ticker) { _ in
             playCues(timerModel.tick())
+        }
+        .onChange(of: timerModel.state) {
+            updateWakeLock()
         }
         .onChange(of: durationSeconds) { _, newValue in
             guard timerModel.canEditDuration else { return }
@@ -119,5 +128,9 @@ struct MeditationPanel: View {
     private func playCues(_ cues: [MeditationTimerModel.Cue]) {
         guard !isMuted else { return }
         audioPlayer.play(cues)
+    }
+
+    private func updateWakeLock() {
+        MeditationWakeLock.setActive(timerModel.state == .running)
     }
 }
