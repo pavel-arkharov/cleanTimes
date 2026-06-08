@@ -16,6 +16,16 @@ final class MeditationTimerModel: ObservableObject {
         case end
     }
 
+    struct CompletedRun: Equatable {
+        let id: UUID
+        let startedAt: Date
+        let completedAt: Date
+        let plannedDurationSeconds: TimeInterval
+        let creditedDurationSeconds: TimeInterval
+        let timezoneIDAtStart: String
+        let completionSource: MeditationCompletionSource
+    }
+
     static let minimumDurationSeconds: TimeInterval = 60
     static let maximumDurationSeconds: TimeInterval = 7_200
     static let middleCueLeadTimeSeconds: TimeInterval = 2
@@ -26,11 +36,14 @@ final class MeditationTimerModel: ObservableObject {
     @Published private(set) var remainingSeconds: TimeInterval
 
     private let now: () -> Date
+    private var activeRunID: UUID?
     private var startedAt: Date?
+    private var timezoneIDAtStart: String?
     private var pausedAt: Date?
     private var accumulatedPausedDuration: TimeInterval = 0
     private var hasPlayedMiddleGong = false
     private var hasPlayedEndGong = false
+    private var pendingCompletedRun: CompletedRun?
 
     init(durationSeconds: TimeInterval, now: @escaping () -> Date = { Date() }) {
         let clampedDuration = Self.clampedDuration(durationSeconds)
@@ -92,12 +105,15 @@ final class MeditationTimerModel: ObservableObject {
     func begin() -> [Cue] {
         let currentDate = now()
         state = .running
+        activeRunID = UUID()
         startedAt = currentDate
+        timezoneIDAtStart = TimeZone.current.identifier
         pausedAt = nil
         accumulatedPausedDuration = 0
         remainingSeconds = durationSeconds
         hasPlayedMiddleGong = false
         hasPlayedEndGong = false
+        pendingCompletedRun = nil
         return [.start]
     }
 
@@ -128,11 +144,14 @@ final class MeditationTimerModel: ObservableObject {
     func reset() {
         state = .idle
         remainingSeconds = durationSeconds
+        activeRunID = nil
         startedAt = nil
+        timezoneIDAtStart = nil
         pausedAt = nil
         accumulatedPausedDuration = 0
         hasPlayedMiddleGong = false
         hasPlayedEndGong = false
+        pendingCompletedRun = nil
     }
 
     func setDuration(seconds: TimeInterval) {
@@ -146,6 +165,11 @@ final class MeditationTimerModel: ObservableObject {
     func tick() -> [Cue] {
         guard state == .running else { return [] }
         return refresh(at: now())
+    }
+
+    func consumeCompletedRun() -> CompletedRun? {
+        defer { pendingCompletedRun = nil }
+        return pendingCompletedRun
     }
 
     static func clampedDuration(_ seconds: TimeInterval) -> TimeInterval {
@@ -162,6 +186,7 @@ final class MeditationTimerModel: ObservableObject {
         if updatedRemaining <= 0 {
             state = .completed
             remainingSeconds = 0
+            recordCompletionIfNeeded(at: currentDate)
 
             guard !hasPlayedEndGong else { return [] }
             hasPlayedEndGong = true
@@ -197,5 +222,25 @@ final class MeditationTimerModel: ObservableObject {
 
     private var middleCueElapsedThreshold: TimeInterval {
         max((durationSeconds / 2) - Self.middleCueLeadTimeSeconds, 0)
+    }
+
+    private func recordCompletionIfNeeded(at completedAt: Date) {
+        guard
+            pendingCompletedRun == nil,
+            let activeRunID,
+            let startedAt
+        else {
+            return
+        }
+
+        pendingCompletedRun = CompletedRun(
+            id: activeRunID,
+            startedAt: startedAt,
+            completedAt: completedAt,
+            plannedDurationSeconds: durationSeconds,
+            creditedDurationSeconds: durationSeconds,
+            timezoneIDAtStart: timezoneIDAtStart ?? TimeZone.current.identifier,
+            completionSource: .timerReachedZero
+        )
     }
 }

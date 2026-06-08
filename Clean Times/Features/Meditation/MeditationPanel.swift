@@ -7,7 +7,9 @@ struct MeditationPanel: View {
     @AppStorage("meditationSoundsMuted") private var isMuted = false
     @StateObject private var timerModel: MeditationTimerModel
     @StateObject private var audioPlayer = MeditationAudioPlayer()
+    @StateObject private var sessionStore = MeditationSessionStore()
     @State private var showsDurationEditor = false
+    @State private var showsPracticeCalendar = false
 
     private let options = [5, 10, 15, 20]
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -58,6 +60,20 @@ struct MeditationPanel: View {
                 )
                 .accessibilityLabel(secondaryAccessibilityLabel)
 
+                RetroButton(
+                    minWidth: 14,
+                    role: .secondary,
+                    size: .compact
+                ) {
+                    showsPracticeCalendar = true
+                } label: {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 17, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(RetroTheme.blue)
+                        .frame(width: 18, height: 18)
+                }
+                .accessibilityLabel("Open practice calendar")
+
                 RetroCheckbox(isChecked: $isMuted)
                     .accessibilityLabel("Mute meditation sounds")
                     .accessibilityValue(isMuted ? "Muted" : "Unmuted")
@@ -74,6 +90,7 @@ struct MeditationPanel: View {
         }
         .onReceive(ticker) { _ in
             playCues(timerModel.tick())
+            recordCompletedRunIfNeeded()
         }
         .onChange(of: timerModel.state) {
             updateWakeLock()
@@ -93,6 +110,9 @@ struct MeditationPanel: View {
                 setDuration(minutes: minutes)
             }
         }
+        .sheet(isPresented: $showsPracticeCalendar) {
+            PracticeCalendarView(store: sessionStore)
+        }
     }
 
     private var secondaryButtonTitle: String {
@@ -105,6 +125,7 @@ struct MeditationPanel: View {
 
     private func performPrimaryAction() {
         playCues(timerModel.performPrimaryAction())
+        recordCompletedRunIfNeeded()
     }
 
     private func performSecondaryAction() {
@@ -132,5 +153,23 @@ struct MeditationPanel: View {
 
     private func updateWakeLock() {
         MeditationWakeLock.setActive(timerModel.state == .running)
+    }
+
+    private func recordCompletedRunIfNeeded() {
+        guard let completedRun = timerModel.consumeCompletedRun() else {
+            return
+        }
+
+        let session = MeditationSession(
+            id: completedRun.id,
+            startedAt: completedRun.startedAt,
+            completedAt: completedRun.completedAt,
+            plannedDurationSeconds: completedRun.plannedDurationSeconds,
+            creditedDurationSeconds: completedRun.creditedDurationSeconds,
+            timezoneIDAtStart: completedRun.timezoneIDAtStart,
+            completionSource: completedRun.completionSource
+        )
+
+        sessionStore.saveCompletedSession(session)
     }
 }
