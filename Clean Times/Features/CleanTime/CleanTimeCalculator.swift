@@ -66,14 +66,16 @@ enum CleanTimeCalculator {
         let years = max(components.year ?? 0, 0)
         let months = max(components.month ?? 0, 0)
         let remainingDays = max(components.day ?? 0, 0)
-        let weeks = remainingDays / 7
-        let days = remainingDays % 7
 
         var parts: [String] = []
         append(years, singular: "year", plural: "years", to: &parts)
         append(months, singular: "month", plural: "months", to: &parts)
-        append(weeks, singular: "week", plural: "weeks", to: &parts)
-        append(days, singular: "day", plural: "days", to: &parts)
+        if years > 0 || months > 0 {
+            append(remainingDays, singular: "day", plural: "days", to: &parts)
+        } else {
+            append(remainingDays / 7, singular: "week", plural: "weeks", to: &parts)
+            append(remainingDays % 7, singular: "day", plural: "days", to: &parts)
+        }
 
         return parts.isEmpty ? "0 days" : parts.joined(separator: ", ")
     }
